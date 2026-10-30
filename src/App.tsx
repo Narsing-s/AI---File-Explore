@@ -301,6 +301,9 @@ function App() {
           <div className="explorer-heading">
             <div><h2>Browse files</h2><p>{isBrowserFileMode() ? "Choose a folder on this device to browse in your browser" : "Explore folders on your device"}</p></div>
             <div className="explorer-tools">
+              <select className="sort-select" aria-label="Sort files" value={sortBy} onChange={(event) => setSortBy(event.target.value as typeof sortBy)}><option value="name">Name</option><option value="type">Type</option><option value="size">Size</option><option value="modified">Modified</option></select>
+              <button className="sort-direction" onClick={() => setSortDirection((value) => value === "asc" ? "desc" : "asc")} title={sortDirection === "asc" ? "Ascending order" : "Descending order"}>{sortDirection === "asc" ? "↑" : "↓"}</button>
+              <label className="hidden-toggle"><input type="checkbox" checked={showHidden} onChange={(event) => setShowHidden(event.target.checked)} /> Hidden</label>
               <div className="search-box"><Search size={16} /><input id="global-search" value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Search this folder..." /><kbd>⌘ K</kbd></div>
               <div className="view-toggle"><button className={view === "list" ? "selected" : ""} onClick={() => setView("list")} title="List view"><List size={17} /></button><button className={view === "grid" ? "selected" : ""} onClick={() => setView("grid")} title="Grid view"><LayoutGrid size={17} /></button></div>
             </div>

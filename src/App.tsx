@@ -1,9 +1,9 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import {
-  ArrowLeft, ArrowRight, ChevronDown, ChevronRight, Command, File, FileImage,
+  ArrowLeft, ArrowRight, ChevronRight, Command, File, FileImage,
   FileText, Folder, FolderPlus, HardDrive, Home, LayoutGrid, List, LoaderCircle,
-  Moon, MoreHorizontal, RefreshCw, Search, Settings2, Sparkles, Sun, Upload,
+  Moon, MoreHorizontal, RefreshCw, Search, Settings2, Sparkles, Sun,
   Video, Music2, FileArchive, FileCode2, Clock3
 } from "lucide-react";
 

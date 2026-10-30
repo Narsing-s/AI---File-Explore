@@ -11,6 +11,7 @@ export type FileEntry = {
 
 type BrowserFileHandle = {
   kind: "file";
+  name: string;
   getFile(): Promise<File>;
 };
 

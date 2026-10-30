@@ -29,6 +29,6 @@
     "targets": "all",
     "category": "Utility",
     "shortDescription": "Local-first intelligent file manager",
-    "icon": []
+    "icon": ["icons/icon.png"]
   }
 }

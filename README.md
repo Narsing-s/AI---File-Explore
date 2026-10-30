@@ -31,7 +31,8 @@ A local-first file manager built with React, TypeScript, Tauri 2 and Rust, with 
 - Rename files and folders on desktop; rename files in supported browsers.
 - Copy and move files/folders, including recursive folder copy and collision checks.
 - Permanent delete with explicit confirmation.
-- Keyboard shortcuts: Ctrl/Cmd+K search, Ctrl/Cmd+C copy, Ctrl/Cmd+X cut, Ctrl/Cmd+V paste, F2 rename and Delete remove.
+- Keyboard shortcuts: Ctrl/Cmd+K search, Ctrl/Cmd+A select visible items, Ctrl/Cmd+C copy, Ctrl/Cmd+X cut, Ctrl/Cmd+V paste, F2 rename a single item and Delete remove selected items.
+- Multi-select files and folders with Ctrl/Cmd-click in list or grid view; batch copy, cut/move, paste and permanent delete. Failed batch items remain available for retry.
 - Search within the currently displayed directory.
 - Sort by name, type, size or modified date; toggle ascending/descending order.
 - Show or hide dot-prefixed hidden files.
@@ -40,7 +41,7 @@ A local-first file manager built with React, TypeScript, Tauri 2 and Rust, with 
 - Windows and Linux Tauri build workflow.
 - GitHub Pages web build/deployment workflow.
 
-Global indexing, recoverable trash, undo, advanced previews, tabs, multi-select/batch operations and Android Storage Access Framework integration are not yet implemented. Browser folder rename is not supported by the browser File System Access API. Browser file operations require a supported secure context and a Chromium-based browser such as current Chrome or Edge.
+Global indexing, recoverable trash, undo, advanced previews, tabs and Android Storage Access Framework integration are not yet implemented. Browser folder rename is not supported by the browser File System Access API. Browser file operations require a supported secure context and a Chromium-based browser such as current Chrome or Edge.
 
 ## Requirements
 
@@ -80,7 +81,7 @@ GitHub Actions builds Windows/Linux desktop bundles and deploys the web build to
 
 ## Privacy and safety
 
-Filesystem access remains local. Browser access is scoped to the folder the user selects. Cloud AI, when introduced, must be explicitly configured and opt-in. Permanent deletion currently requires confirmation but is not recoverable; a trash/recovery workflow and operation journal are still required before production use. AI-generated actions must never execute without validation and user approval.
+Filesystem access remains local. Browser access is scoped to the folder the user selects. Cloud AI, when introduced, must be explicitly configured and opt-in. Permanent deletion (including batch deletion) currently requires confirmation but is not recoverable; a trash/recovery workflow and operation journal are still required before production use. AI-generated actions must never execute without validation and user approval.
 
 ## Status
 

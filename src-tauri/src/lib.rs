@@ -75,7 +75,7 @@ fn list_directory(path: String) -> Result<Vec<FileEntry>, String> {
 #[tauri::command]
 fn create_folder(parent: String, name: String) -> Result<String, String> {
     let trimmed = name.trim();
-    if trimmed.is_empty() || trimmed == "." || trimmed == ".." || trimmed.contains(['/', '\\']) {
+    if trimmed.is_empty() || trimmed == "." || trimmed == ".." || trimmed.contains('/') || trimmed.contains('\\') {
         return Err("Enter a valid folder name".to_string());
     }
     let parent_path = Path::new(&parent);

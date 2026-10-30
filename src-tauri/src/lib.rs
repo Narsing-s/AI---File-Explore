@@ -2,6 +2,7 @@ use serde::Serialize;
 use std::{
     fs,
     path::{Path, PathBuf},
+    process::Command,
     time::UNIX_EPOCH,
 };
 
@@ -88,6 +89,21 @@ fn create_folder(parent: String, name: String) -> Result<String, String> {
 }
 
 #[tauri::command]
+fn open_file(path: String) -> Result<(), String> {
+    let target = Path::new(&path);
+    if !target.is_file() {
+        return Err("The selected file is unavailable or is not a regular file".to_string());
+    }
+    #[cfg(target_os = "windows")]
+    let result = Command::new("cmd").args(["/C", "start", "", &path]).spawn();
+    #[cfg(target_os = "macos")]
+    let result = Command::new("open").arg(&path).spawn();
+    #[cfg(all(not(target_os = "windows"), not(target_os = "macos")))]
+    let result = Command::new("xdg-open").arg(&path).spawn();
+    result.map(|_| ()).map_err(|e| format!("Could not open file with the system application: {e}"))
+}
+
+#[tauri::command]
 fn rename_entry(path: String, new_name: String) -> Result<String, String> {
     let trimmed = new_name.trim();
     if trimmed.is_empty() || trimmed == "." || trimmed == ".."
@@ -141,6 +157,7 @@ pub fn run() {
             home_directory,
             list_directory,
             create_folder,
+            open_file,
             rename_entry,
             delete_entry,
             reveal_parent

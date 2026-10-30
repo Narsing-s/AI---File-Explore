@@ -90,23 +90,26 @@ export async function readDirectory(path: string): Promise<FileEntry[]> {
 
 export async function openFile(path: string): Promise<void> {
   if (isNative()) return invoke<void>("open_file", { path });
-  const separator = path.lastIndexOf("/");
-  const parent = path.slice(0, separator);
-  const name = path.slice(separator + 1);
-  const directory = browserDirectories.get(parent);
-  if (!directory) throw new Error("Choose the parent folder again to restore access.");
-  const handle = await directory.getFileHandle(name);
-  const file = await handle.getFile();
-  const url = URL.createObjectURL(file);
-  const opened = window.open(url, "_blank");
-  if (opened) opened.opener = null;
-  if (!opened) {
-    URL.revokeObjectURL(url);
-    throw new Error("The browser blocked the preview tab. Allow pop-ups for this site and try again.");
+  // Open the tab synchronously during the user click to avoid popup blockers.
+  const opened = window.open("about:blank", "_blank");
+  if (!opened) throw new Error("The browser blocked the file tab. Allow pop-ups for this site and try again.");
+  opened.opener = null;
+  try {
+    const separator = path.lastIndexOf("/");
+    const parent = path.slice(0, separator);
+    const name = path.slice(separator + 1);
+    const directory = browserDirectories.get(parent);
+    if (!directory) throw new Error("Choose the parent folder again to restore access.");
+    const handle = await directory.getFileHandle(name);
+    const file = await handle.getFile();
+    const url = URL.createObjectURL(file);
+    opened.location.href = url;
+    window.setTimeout(() => URL.revokeObjectURL(url), 60_000);
+  } catch (error) {
+    opened.close();
+    throw error;
   }
-  window.setTimeout(() => URL.revokeObjectURL(url), 60_000);
 }
-
 
 async function browserEntryExists(parent: BrowserDirectoryHandle, name: string): Promise<boolean> {
   for (const kind of ["file", "directory"] as const) {

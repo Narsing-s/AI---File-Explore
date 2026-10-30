@@ -42,6 +42,10 @@ function App() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [view, setView] = useState<"grid" | "list">("list");
+  const [sortBy, setSortBy] = useState<"name" | "type" | "size" | "modified">("name");
+  const [sortDirection, setSortDirection] = useState<"asc" | "desc">("asc");
+  const [showHidden, setShowHidden] = useState(false);
+  const [showProperties, setShowProperties] = useState(false);
   const [toast, setToast] = useState("");
   const [selected, setSelected] = useState<Entry | null>(null);
   const [clipboard, setClipboard] = useState<{ entry: Entry; mode: "copy" | "cut" } | null>(null);
@@ -111,9 +115,22 @@ function App() {
       });
   }, [loadDirectory]);
 
-  const filteredEntries = useMemo(() => entries.filter((entry) =>
-    entry.name.toLocaleLowerCase().includes(query.toLocaleLowerCase())
-  ), [entries, query]);
+  const filteredEntries = useMemo(() => {
+    const visible = entries.filter((entry) =>
+      (showHidden || !entry.name.startsWith(".")) &&
+      entry.name.toLocaleLowerCase().includes(query.toLocaleLowerCase())
+    );
+    const direction = sortDirection === "asc" ? 1 : -1;
+    return visible.sort((a, b) => {
+      if (a.isDir !== b.isDir) return a.isDir ? -1 : 1;
+      let result = 0;
+      if (sortBy === "name") result = a.name.localeCompare(b.name, undefined, { sensitivity: "base" });
+      else if (sortBy === "type") result = (a.extension || (a.isDir ? "folder" : "")).localeCompare(b.extension || (b.isDir ? "folder" : ""));
+      else if (sortBy === "size") result = a.size - b.size;
+      else result = (a.modifiedAt || 0) - (b.modifiedAt || 0);
+      return result * direction;
+    });
+  }, [entries, query, showHidden, sortBy, sortDirection]);
 
   const folders = entries.filter((entry) => entry.isDir).length;
   const files = entries.length - folders;
@@ -297,7 +314,8 @@ function App() {
           </div>
 
           {error && <div className="error-banner">{error}</div>}
-          {selected && <div className="path-bar selection-actions"><strong>{selected.name}</strong><span>{selected.isDir ? "Folder" : "File"} selected</span><button onClick={copySelectedPath}>Copy path</button><button onClick={() => setClipboardFromSelection("copy")}>Copy</button><button onClick={() => setClipboardFromSelection("cut")}>Cut</button><button onClick={renameSelected} disabled={isBrowserFileMode() && selected.isDir} title={isBrowserFileMode() && selected.isDir ? "Folder rename is not supported by this browser" : "Rename selected item"}>Rename</button><button onClick={deleteSelected}>Delete</button><button onClick={() => setSelected(null)} title="Clear selection">Clear</button></div>}
+          {selected && <div className="path-bar selection-actions"><strong>{selected.name}</strong><span>{selected.isDir ? "Folder" : "File"} selected</span><button onClick={copySelectedPath}>Copy path</button><button onClick={() => setClipboardFromSelection("copy")}>Copy</button><button onClick={() => setClipboardFromSelection("cut")}>Cut</button><button onClick={renameSelected} disabled={isBrowserFileMode() && selected.isDir} title={isBrowserFileMode() && selected.isDir ? "Folder rename is not supported by this browser" : "Rename selected item"}>Rename</button><button onClick={deleteSelected}>Delete</button><button onClick={() => setShowProperties((value) => !value)}>Properties</button><button onClick={() => setSelected(null)} title="Clear selection">Clear</button></div>}
+          {selected && showProperties && <div className="properties-panel"><strong>Properties</strong><span><b>Name</b>{selected.name}</span><span><b>Type</b>{selected.isDir ? "Folder" : (selected.extension?.toUpperCase() || "File")}</span><span><b>Size</b>{selected.isDir ? "Not calculated" : formatBytes(selected.size)}</span><span><b>Modified</b>{formatDate(selected.modifiedAt)}</span><span><b>Location</b>{selected.path}</span></div>}
 
           {clipboard && <div className="clipboard-bar"><span>{clipboard.mode === "copy" ? "Copying" : "Moving"}: <strong>{clipboard.entry.name}</strong></span><button onClick={pasteClipboard} disabled={!currentPath}>Paste here</button><button onClick={() => setClipboard(null)}>Cancel</button></div>}
 

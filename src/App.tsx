@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { isBrowserFileMode, makeFolder, openHomeDirectory, parentDirectory, readDirectory, openFile, renameEntry, deleteEntry, type FileEntry } from "./platform/filesystem";
+import { isBrowserFileMode, makeFolder, openHomeDirectory, parentDirectory, readDirectory, openFile, renameEntry, deleteEntry, copyEntry, moveEntry, type FileEntry } from "./platform/filesystem";
 import {
   ArrowLeft, Copy, ChevronRight, Command, File, FileImage,
   FileText, Folder, FolderPlus, HardDrive, Home, LayoutGrid, List, LoaderCircle,
@@ -44,6 +44,7 @@ function App() {
   const [view, setView] = useState<"grid" | "list">("list");
   const [toast, setToast] = useState("");
   const [selected, setSelected] = useState<Entry | null>(null);
+  const [clipboard, setClipboard] = useState<{ entry: Entry; mode: "copy" | "cut" } | null>(null);
 
   useEffect(() => {
     document.documentElement.dataset.theme = theme;
@@ -66,11 +67,32 @@ function App() {
 
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
-      if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === "k") {
+      const target = event.target as HTMLElement | null;
+      const typing = !!target && (target.tagName === "INPUT" || target.tagName === "TEXTAREA" || target.isContentEditable);
+      const key = event.key.toLowerCase();
+      if ((event.ctrlKey || event.metaKey) && key === "k") {
         event.preventDefault();
         document.getElementById("global-search")?.focus();
+      } else if ((event.ctrlKey || event.metaKey) && key === "c" && selected && !typing) {
+        event.preventDefault();
+        setClipboard({ entry: selected, mode: "copy" });
+        setToast("Ready to copy");
+      } else if ((event.ctrlKey || event.metaKey) && key === "x" && selected && !typing) {
+        event.preventDefault();
+        setClipboard({ entry: selected, mode: "cut" });
+        setToast("Ready to move");
+      } else if ((event.ctrlKey || event.metaKey) && key === "v" && clipboard && !typing) {
+        event.preventDefault();
+        void pasteClipboard();
+      } else if (key === "f2" && selected && !typing) {
+        event.preventDefault();
+        void renameSelected();
+      } else if (key === "delete" && selected && !typing) {
+        event.preventDefault();
+        void deleteSelected();
+      } else if (event.key === "Escape") {
+        setSelected(null);
       }
-      if (event.key === "Escape") setSelected(null);
     };
     window.addEventListener("keydown", onKeyDown);
     return () => window.removeEventListener("keydown", onKeyDown);
@@ -113,7 +135,26 @@ function App() {
     }
   };
 
-  const renameSelected = async () => {
+  const setClipboardFromSelection = (mode: "copy" | "cut") => {
+    if (!selected) return;
+    setClipboard({ entry: selected, mode });
+    setToast(mode === "copy" ? "Ready to copy" : "Ready to move");
+    window.setTimeout(() => setToast(""), 2600);
+  };
+
+  const pasteClipboard = async () => {
+    if (!clipboard || !currentPath) return;
+    try {
+      if (clipboard.mode === "copy") await copyEntry(clipboard.entry.path, currentPath);
+      else await moveEntry(clipboard.entry.path, currentPath);
+      await loadDirectory(currentPath);
+      if (clipboard.mode === "cut") setClipboard(null);
+      setToast(clipboard.mode === "copy" ? "Item copied" : "Item moved");
+      window.setTimeout(() => setToast(""), 2600);
+    } catch (err) { setError(String(err)); }
+  };
+
+  const createFolder = async () => {
     if (!selected) return;
     const nextName = window.prompt("Rename item", selected.name);
     if (!nextName?.trim() || nextName.trim() === selected.name) return;
@@ -256,20 +297,22 @@ function App() {
           </div>
 
           {error && <div className="error-banner">{error}</div>}
-          {selected && <div className="path-bar selection-actions"><strong>{selected.name}</strong><span>{selected.isDir ? "Folder" : "File"} selected</span><button onClick={copySelectedPath}>Copy path</button><button onClick={renameSelected} disabled={isBrowserFileMode() && selected.isDir} title={isBrowserFileMode() && selected.isDir ? "Folder rename is not supported by this browser" : "Rename selected item"}>Rename</button><button onClick={deleteSelected}>Delete</button><button onClick={() => setSelected(null)} title="Clear selection">Clear</button></div>}
+          {selected && <div className="path-bar selection-actions"><strong>{selected.name}</strong><span>{selected.isDir ? "Folder" : "File"} selected</span><button onClick={copySelectedPath}>Copy path</button><button onClick={() => setClipboardFromSelection("copy")}>Copy</button><button onClick={() => setClipboardFromSelection("cut")}>Cut</button><button onClick={renameSelected} disabled={isBrowserFileMode() && selected.isDir} title={isBrowserFileMode() && selected.isDir ? "Folder rename is not supported by this browser" : "Rename selected item"}>Rename</button><button onClick={deleteSelected}>Delete</button><button onClick={() => setSelected(null)} title="Clear selection">Clear</button></div>}
+
+          {clipboard && <div className="clipboard-bar"><span>{clipboard.mode === "copy" ? "Copying" : "Moving"}: <strong>{clipboard.entry.name}</strong></span><button onClick={pasteClipboard} disabled={!currentPath}>Paste here</button><button onClick={() => setClipboard(null)}>Cancel</button></div>}
 
           <div className="file-area">
             {loading ? <div className="empty-state"><LoaderCircle className="spinner" size={25} /><strong>Loading your files</strong><span>Reading this folder from your device…</span></div>
               : filteredEntries.length === 0 ? <div className="empty-state"><Folder size={30} /><strong>{query ? "No matching files" : "This folder is empty"}</strong><span>{query ? "Try another search term." : "Create a folder or browse to another location."}</span></div>
               : view === "list" ? <div className="file-table">
                 <div className="table-head"><span>NAME</span><span>TYPE</span><span>SIZE</span><span>MODIFIED</span></div>
-                {filteredEntries.map((entry) => <button className="file-row" key={entry.path} onDoubleClick={() => void openSelectedFile(entry)} onClick={() => setSelected(entry)}>
+                {filteredEntries.map((entry) => <button className={`file-row ${selected?.path === entry.path ? "selected" : ""}`} key={entry.path} onDoubleClick={() => void openSelectedFile(entry)} onClick={() => setSelected(entry)}>
                   <span className="file-name-cell">{iconFor(entry)}<span>{entry.name}</span></span>
                   <span className="file-type">{entry.isDir ? "Folder" : (entry.extension?.toUpperCase() || "File")}</span>
                   <span className="file-size">{entry.isDir ? "—" : formatBytes(entry.size)}</span>
                   <span className="file-date">{formatDate(entry.modifiedAt)}</span>
                 </button>)}
-              </div> : <div className="file-grid">{filteredEntries.map((entry) => <button className="file-tile" key={entry.path} onClick={() => setSelected(entry)} onDoubleClick={() => void openSelectedFile(entry)}>{iconFor(entry)}<span>{entry.name}</span><small>{entry.isDir ? "Folder" : formatBytes(entry.size)}</small></button>)}</div>}
+              </div> : <div className="file-grid">{filteredEntries.map((entry) => <button className={`file-tile ${selected?.path === entry.path ? "selected" : ""}`} key={entry.path} onClick={() => setSelected(entry)} onDoubleClick={() => void openSelectedFile(entry)}>{iconFor(entry)}<span>{entry.name}</span><small>{entry.isDir ? "Folder" : formatBytes(entry.size)}</small></button>)}</div>}
           </div>
           <footer className="statusbar"><span>{loading ? "Reading directory…" : `${filteredEntries.length} items`}</span><span><span className="status-dot" /> {isBrowserFileMode() ? "Folder access stays in this browser session" : "Files are accessed locally on this device"}</span></footer>
         </div>

@@ -88,6 +88,101 @@ fn create_folder(parent: String, name: String) -> Result<String, String> {
     Ok(new_path.to_string_lossy().into_owned())
 }
 
+
+fn copy_path_safely(source: &Path, destination: &Path) -> Result<(), String> {
+    let metadata = fs::symlink_metadata(source).map_err(|e| format!("Cannot inspect source: {e}"))?;
+    let kind = metadata.file_type();
+    if kind.is_symlink() {
+        return Err("Copying symbolic links is disabled for safety.".to_string());
+    }
+    if kind.is_file() {
+        fs::copy(source, destination).map(|_| ()).map_err(|e| format!("Could not copy file: {e}"))
+    } else if kind.is_dir() {
+        fs::create_dir(destination).map_err(|e| format!("Could not create destination folder: {e}"))?;
+        let entries = fs::read_dir(source).map_err(|e| format!("Could not read source folder: {e}"))?;
+        for entry in entries {
+            let entry = entry.map_err(|e| format!("Could not read source item: {e}"))?;
+            let child_source = entry.path();
+            let child_destination = destination.join(entry.file_name());
+            if let Err(error) = copy_path_safely(&child_source, &child_destination) {
+                let _ = fs::remove_dir_all(destination);
+                return Err(error);
+            }
+        }
+        Ok(())
+    } else {
+        Err("This item type cannot be copied.".to_string())
+    }
+}
+
+fn destination_for(source: &Path, destination_directory: &Path) -> Result<PathBuf, String> {
+    if !destination_directory.is_dir() {
+        return Err("The destination folder is unavailable.".to_string());
+    }
+    let name = source.file_name().ok_or_else(|| "The selected item has no valid name.".to_string())?;
+    let destination = destination_directory.join(name);
+    if destination.exists() {
+        return Err("An item with that name already exists in the destination.".to_string());
+    }
+    Ok(destination)
+}
+
+#[tauri::command]
+fn copy_entry(path: String, destination_directory: String) -> Result<String, String> {
+    let source = Path::new(&path);
+    let source_metadata = fs::symlink_metadata(source).map_err(|e| format!("Cannot access source: {e}"))?;
+    if !source_metadata.file_type().is_file() && !source_metadata.file_type().is_dir() {
+        return Err("This item type cannot be copied.".to_string());
+    }
+    let destination_directory = Path::new(&destination_directory);
+    let destination = destination_for(source, destination_directory)?;
+    if source_metadata.file_type().is_dir() {
+        let source_real = fs::canonicalize(source).map_err(|e| format!("Cannot resolve source folder: {e}"))?;
+        let destination_real = fs::canonicalize(destination_directory).map_err(|e| format!("Cannot resolve destination folder: {e}"))?;
+        if destination_real.starts_with(&source_real) {
+            return Err("A folder cannot be copied into itself or one of its subfolders.".to_string());
+        }
+    }
+    copy_path_safely(source, &destination)?;
+    Ok(destination.to_string_lossy().into_owned())
+}
+
+#[tauri::command]
+fn move_entry(path: String, destination_directory: String) -> Result<String, String> {
+    let source = Path::new(&path);
+    let source_metadata = fs::symlink_metadata(source).map_err(|e| format!("Cannot access source: {e}"))?;
+    if !source_metadata.file_type().is_file() && !source_metadata.file_type().is_dir() {
+        return Err("This item type cannot be moved.".to_string());
+    }
+    let destination_directory = Path::new(&destination_directory);
+    if source.parent() == Some(destination_directory) {
+        return Ok(path);
+    }
+    let destination = destination_for(source, destination_directory)?;
+    if source_metadata.file_type().is_dir() {
+        let source_real = fs::canonicalize(source).map_err(|e| format!("Cannot resolve source folder: {e}"))?;
+        let destination_real = fs::canonicalize(destination_directory).map_err(|e| format!("Cannot resolve destination folder: {e}"))?;
+        if destination_real.starts_with(&source_real) {
+            return Err("A folder cannot be moved into itself or one of its subfolders.".to_string());
+        }
+    }
+    match fs::rename(source, &destination) {
+        Ok(()) => Ok(destination.to_string_lossy().into_owned()),
+        Err(_) => {
+            copy_path_safely(source, &destination)?;
+            let removal = if source_metadata.file_type().is_dir() {
+                fs::remove_dir_all(source)
+            } else {
+                fs::remove_file(source)
+            };
+            if let Err(error) = removal {
+                return Err(format!("The item was copied, but the original could not be removed: {error}. Both copies may now exist."));
+            }
+            Ok(destination.to_string_lossy().into_owned())
+        }
+    }
+}
+
 #[tauri::command]
 fn open_file(path: String) -> Result<(), String> {
     let target = Path::new(&path);
@@ -157,6 +252,8 @@ pub fn run() {
             home_directory,
             list_directory,
             create_folder,
+            copy_entry,
+            move_entry,
             open_file,
             rename_entry,
             delete_entry,

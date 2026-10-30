@@ -3,7 +3,7 @@ import { isBrowserFileMode, makeFolder, openHomeDirectory, parentDirectory, read
 import {
   ArrowLeft, ArrowRight, ChevronRight, Command, File, FileImage,
   FileText, Folder, FolderPlus, HardDrive, Home, LayoutGrid, List, LoaderCircle,
-  Moon, MoreHorizontal, RefreshCw, Search, Sparkles, Sun,
+  Moon, RefreshCw, Search, Sparkles, Sun,
   Video, Music2, FileArchive, FileCode2
 } from "lucide-react";
 
@@ -98,6 +98,7 @@ function App() {
   const parentPath = parentDirectory(currentPath);
 
   const navigate = (path: string) => {
+    setSelected(null);
     setQuery("");
     void loadDirectory(path);
   };

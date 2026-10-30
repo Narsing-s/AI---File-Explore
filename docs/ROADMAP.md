@@ -11,9 +11,10 @@
 - [x] Web build and GitHub Pages deployment workflow
 
 ## Milestone 1 — Reliable cross-platform explorer
-- [x] Single-click selection and core keyboard shortcuts (accessibility audit still required)
+- [x] Single-click and multi-select (Ctrl/Cmd-click, select all) with core keyboard shortcuts (accessibility audit still required)
 - [ ] Location picker and pinned/favorite locations
 - [x] Copy, cut, paste, move and rename with collision handling (desktop; browser file operations supported, folder rename limited)
+- [x] Batch copy, cut/move, paste and permanent delete with per-item failure retention (delete is still permanent)
 - [ ] Recoverable delete-to-trash, restore and permanent-delete management (current delete is permanent with confirmation)
 - [ ] Tabs and dual-pane mode
 - [ ] File properties and safe previews

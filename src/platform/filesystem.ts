@@ -98,7 +98,8 @@ export async function openFile(path: string): Promise<void> {
   const handle = await directory.getFileHandle(name);
   const file = await handle.getFile();
   const url = URL.createObjectURL(file);
-  const opened = window.open(url, "_blank", "noopener,noreferrer");
+  const opened = window.open(url, "_blank");
+  if (opened) opened.opener = null;
   if (!opened) {
     URL.revokeObjectURL(url);
     throw new Error("The browser blocked the preview tab. Allow pop-ups for this site and try again.");

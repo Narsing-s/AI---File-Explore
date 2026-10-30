@@ -98,9 +98,21 @@ fn copy_path_safely(source: &Path, destination: &Path) -> Result<(), String> {
         fs::copy(source, destination).map(|_| ()).map_err(|e| format!("Could not copy file: {e}"))
     } else if kind.is_dir() {
         fs::create_dir(destination).map_err(|e| format!("Could not create destination folder: {e}"))?;
-        let entries = fs::read_dir(source).map_err(|e| format!("Could not read source folder: {e}"))?;
+        let entries = match fs::read_dir(source) {
+            Ok(entries) => entries,
+            Err(error) => {
+                let _ = fs::remove_dir_all(destination);
+                return Err(format!("Could not read source folder: {error}"));
+            }
+        };
         for entry in entries {
-            let entry = entry.map_err(|e| format!("Could not read source item: {e}"))?;
+            let entry = match entry {
+                Ok(entry) => entry,
+                Err(error) => {
+                    let _ = fs::remove_dir_all(destination);
+                    return Err(format!("Could not read source item: {error}"));
+                }
+            };
             let child_source = entry.path();
             let child_destination = destination.join(entry.file_name());
             if let Err(error) = copy_path_safely(&child_source, &child_destination) {
@@ -120,7 +132,7 @@ fn destination_for(source: &Path, destination_directory: &Path) -> Result<PathBu
     }
     let name = source.file_name().ok_or_else(|| "The selected item has no valid name.".to_string())?;
     let destination = destination_directory.join(name);
-    if destination.exists() {
+    if fs::symlink_metadata(&destination).is_ok() {
         return Err("An item with that name already exists in the destination.".to_string());
     }
     Ok(destination)
@@ -175,7 +187,15 @@ fn move_entry(path: String, destination_directory: String) -> Result<String, Str
                 fs::remove_file(source)
             };
             if let Err(error) = removal {
-                return Err(format!("The item was copied, but the original could not be removed: {error}. Both copies may now exist."));
+                let rollback = if source_metadata.file_type().is_dir() {
+                    fs::remove_dir_all(&destination)
+                } else {
+                    fs::remove_file(&destination)
+                };
+                return Err(match rollback {
+                    Ok(()) => format!("The original could not be removed, so the destination copy was rolled back: {error}"),
+                    Err(rollback_error) => format!("The move was only partially completed. Original removal failed: {error}. Destination rollback also failed: {rollback_error}. Both copies may exist."),
+                });
             }
             Ok(destination.to_string_lossy().into_owned())
         }

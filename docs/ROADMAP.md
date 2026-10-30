@@ -3,41 +3,50 @@
 ## Milestone 0 — Repository foundation
 - [x] Tauri 2 + React + TypeScript scaffold
 - [x] Rust filesystem command boundary
-- [x] Home directory and directory listing
+- [x] Native home directory and directory listing
 - [x] Create folder
-- [x] Dark and light theme
-- [x] List/grid presentation
+- [x] Dark/light theme and list/grid views
 - [x] Windows/Linux CI build workflow
-- [ ] Verify first successful CI builds on both operating systems
+- [x] Browser filesystem adapter using user-granted directory handles
+- [x] Web build and GitHub Pages deployment workflow
 
-## Milestone 1 — Reliable file explorer
-- [ ] Single-click selection and keyboard navigation
-- [ ] Parent navigation and location picker
-- [ ] Copy, cut, paste, move, and rename
-- [ ] Confirmation and recovery for destructive actions
+## Milestone 1 — Reliable cross-platform explorer
+- [ ] Single-click selection, keyboard navigation and accessible focus states
+- [ ] Location picker and pinned/favorite locations
+- [ ] Copy, cut, paste, move and rename with collision handling
+- [ ] Delete to trash where supported; confirmation and recovery elsewhere
 - [ ] Tabs and dual-pane mode
-- [ ] File properties and safe preview
-- [ ] Accessibility and localization
+- [ ] File properties and safe previews
+- [ ] Browser permission recovery and persistent handle support where supported
+- [ ] Responsive Android navigation and touch interactions
+- [ ] Localization and accessibility audit
 
-## Milestone 2 — Indexing and search
+## Milestone 2 — Android support
+- [ ] Initialize and validate Tauri Android project
+- [ ] Android Storage Access Framework integration (user-selected documents/tree)
+- [ ] Scoped-storage-safe operations; no broad storage permission by default
+- [ ] Android back navigation, share/open-with and content URI handling
+- [ ] Build and test APK/AAB on Android CI
+- [ ] Physical-device tests across supported Android versions
+
+## Milestone 3 — Indexing and search
 - [ ] SQLite schema and migrations
-- [ ] Incremental background indexing
-- [ ] Pause, resume, and cancel indexing
+- [ ] Incremental background indexing with pause/resume/cancel
 - [ ] Tantivy filename and metadata search
-- [ ] Optional full-text extraction
+- [ ] Optional bounded full-text extraction
 - [ ] Duplicate detection using content hashes
-- [ ] Storage usage analysis
+- [ ] Storage usage analysis and large-file discovery
 
-## Milestone 3 — Local AI
+## Milestone 4 — Local AI
 - [ ] Provider interface and AI orchestrator
-- [ ] Local runtime health detection
-- [ ] Model selection and download consent
-- [ ] Natural-language file search
+- [ ] Local runtime health detection and model management
+- [ ] Natural-language file search with source/result explanations
 - [ ] Document summarization and Q&A
 - [ ] AI rename and organization proposals
-- [ ] Approval-before-execution workflow
+- [ ] Preview, validate and approve every proposed operation
+- [ ] Resource-aware model selection for desktop and mobile
 
-## Milestone 4 — Optional cloud AI
+## Milestone 5 — Optional cloud AI
 - [ ] Provider adapters
 - [ ] Explicit per-request cloud consent
 - [ ] Secure credential storage
@@ -45,10 +54,11 @@
 - [ ] Provider status and usage visibility
 - [ ] No cloud fallback without consent
 
-## Milestone 5 — Production readiness
+## Milestone 6 — Production readiness
+- [ ] Unit, integration and end-to-end tests
 - [ ] Large-library performance benchmarks
-- [ ] Permission and symlink security tests
+- [ ] Permission, symlink and path traversal security tests
 - [ ] Interrupted-operation recovery tests
-- [ ] Windows and Linux packaging verification
-- [ ] Signed release strategy
-- [ ] User guide and release notes
+- [ ] Windows, Linux, web and Android release verification
+- [ ] Signed desktop and Android release strategy
+- [ ] User guide, privacy documentation and release notes

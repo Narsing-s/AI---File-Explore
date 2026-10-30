@@ -88,6 +88,46 @@ fn create_folder(parent: String, name: String) -> Result<String, String> {
 }
 
 #[tauri::command]
+fn rename_entry(path: String, new_name: String) -> Result<String, String> {
+    let trimmed = new_name.trim();
+    if trimmed.is_empty() || trimmed == "." || trimmed == ".."
+        || trimmed.contains('/') || trimmed.contains('\\\\')
+        || trimmed.chars().any(|c| c.is_control()) {
+        return Err("Enter a valid name without path separators.".to_string());
+    }
+    let source = PathBuf::from(&path);
+    let parent = source.parent().ok_or_else(|| "The selected item has no parent folder".to_string())?;
+    let metadata = fs::symlink_metadata(&source).map_err(|e| format!("Cannot access selected item: {e}"))?;
+    if !metadata.file_type().is_file() && !metadata.file_type().is_dir() && !metadata.file_type().is_symlink() {
+        return Err("This item type cannot be renamed.".to_string());
+    }
+    let destination = parent.join(trimmed);
+    if destination == source {
+        return Ok(path);
+    }
+    if destination.exists() {
+        return Err("An item with that name already exists.".to_string());
+    }
+    fs::rename(&source, &destination).map_err(|e| format!("Could not rename item: {e}"))?;
+    Ok(destination.to_string_lossy().into_owned())
+}
+
+#[tauri::command]
+fn delete_entry(path: String) -> Result<(), String> {
+    let target = PathBuf::from(&path);
+    let metadata = fs::symlink_metadata(&target).map_err(|e| format!("Cannot access selected item: {e}"))?;
+    let file_type = metadata.file_type();
+    if file_type.is_symlink() || file_type.is_file() {
+        fs::remove_file(&target).map_err(|e| format!("Could not delete file: {e}"))?;
+    } else if file_type.is_dir() {
+        fs::remove_dir_all(&target).map_err(|e| format!("Could not delete folder: {e}"))?;
+    } else {
+        return Err("This item type cannot be deleted.".to_string());
+    }
+    Ok(())
+}
+
+#[tauri::command]
 fn reveal_parent(path: String) -> Result<String, String> {
     let target = Path::new(&path);
     let parent = target.parent().ok_or_else(|| "No parent folder exists".to_string())?;
@@ -101,6 +141,8 @@ pub fn run() {
             home_directory,
             list_directory,
             create_folder,
+            rename_entry,
+            delete_entry,
             reveal_parent
         ])
         .run(tauri::generate_context!())

@@ -13,6 +13,7 @@ type BrowserFileHandle = {
   kind: "file";
   name: string;
   getFile(): Promise<File>;
+  createWritable(): Promise<{ write(data: File | Blob): Promise<void>; close(): Promise<void> }>;
 };
 
 type BrowserDirectoryHandle = {
@@ -20,6 +21,8 @@ type BrowserDirectoryHandle = {
   name: string;
   values(): AsyncIterable<BrowserFileHandle | BrowserDirectoryHandle>;
   getDirectoryHandle(name: string, options?: { create?: boolean }): Promise<BrowserDirectoryHandle>;
+  getFileHandle(name: string): Promise<BrowserFileHandle>;
+  removeEntry(name: string, options?: { recursive?: boolean }): Promise<void>;
 };
 
 type DirectoryPickerWindow = Window & {
@@ -83,6 +86,57 @@ export async function readDirectory(path: string): Promise<FileEntry[]> {
   return entries.sort((a, b) =>
     Number(b.isDir) - Number(a.isDir) || a.name.localeCompare(b.name, undefined, { sensitivity: "base" })
   );
+}
+
+export async function renameEntry(path: string, newName: string): Promise<string> {
+  const trimmed = newName.trim();
+  if (!trimmed || trimmed === "." || trimmed === ".." || /[\\/]/.test(trimmed)) {
+    throw new Error("Enter a valid name without path separators.");
+  }
+  if (isNative()) return invoke<string>("rename_entry", { path, newName: trimmed });
+
+  const separator = path.lastIndexOf("/");
+  const parent = path.slice(0, separator);
+  const oldName = path.slice(separator + 1);
+  const directory = browserDirectories.get(parent);
+  if (!directory) throw new Error("Choose the parent folder again to restore access.");
+  if (oldName === trimmed) return path;
+
+  // The File System Access API cannot rename directories. Files are copied
+  // to the new name and removed only after the write has completed.
+  if (browserDirectories.has(path)) {
+    throw new Error("Folder renaming is not supported by this browser. Use the Windows desktop app.");
+  }
+  const source = await directory.getFileHandle(oldName);
+  const file = await source.getFile();
+  const destination = await directory.getFileHandle(trimmed).catch(async () => {
+    const createDirectory = directory as BrowserDirectoryHandle & {
+      getFileHandle(name: string, options: { create: true }): Promise<BrowserFileHandle>
+    };
+    return createDirectory.getFileHandle(trimmed, { create: true });
+  });
+  const writable = await destination.createWritable();
+  try {
+    await writable.write(file);
+    await writable.close();
+  } catch (error) {
+    throw error;
+  }
+  await directory.removeEntry(oldName);
+  return `${parent}/${trimmed}`;
+}
+
+export async function deleteEntry(path: string): Promise<void> {
+  if (isNative()) return invoke<void>("delete_entry", { path });
+  const separator = path.lastIndexOf("/");
+  const parent = path.slice(0, separator);
+  const name = path.slice(separator + 1);
+  const directory = browserDirectories.get(parent);
+  if (!directory) throw new Error("Choose the parent folder again to restore access.");
+  await directory.removeEntry(name, { recursive: true });
+  for (const key of browserDirectories.keys()) {
+    if (key === path || key.startsWith(`${path}/`)) browserDirectories.delete(key);
+  }
 }
 
 export async function makeFolder(parent: string, name: string): Promise<string> {

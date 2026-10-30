@@ -1,6 +1,8 @@
 use serde::Serialize;
 use std::{
     fs,
+    fs::{File, OpenOptions},
+    io,
     path::{Path, PathBuf},
     time::UNIX_EPOCH,
 };
@@ -95,7 +97,14 @@ fn copy_path_safely(source: &Path, destination: &Path) -> Result<(), String> {
         return Err("Copying symbolic links is disabled for safety.".to_string());
     }
     if kind.is_file() {
-        fs::copy(source, destination).map(|_| ()).map_err(|e| format!("Could not copy file: {e}"))
+        let mut input = File::open(source).map_err(|e| format!("Could not open source file: {e}"))?;
+        let mut output = OpenOptions::new().write(true).create_new(true).open(destination)
+            .map_err(|e| format!("Could not create destination file without overwriting: {e}"))?;
+        if let Err(error) = io::copy(&mut input, &mut output) {
+            let _ = fs::remove_file(destination);
+            return Err(format!("Could not copy file: {error}"));
+        }
+        Ok(())
     } else if kind.is_dir() {
         fs::create_dir(destination).map_err(|e| format!("Could not create destination folder: {e}"))?;
         let entries = match fs::read_dir(source) {

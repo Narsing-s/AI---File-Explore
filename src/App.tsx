@@ -105,7 +105,7 @@ function App() {
     };
     window.addEventListener("keydown", onKeyDown);
     return () => window.removeEventListener("keydown", onKeyDown);
-  }, [selectedItems, clipboard, entries, showHidden, query]);
+  }, [selectedItems, clipboard, entries, showHidden, query, currentPath]);
 
   useEffect(() => {
     if (isBrowserFileMode()) {
@@ -341,13 +341,13 @@ function App() {
               : filteredEntries.length === 0 ? <div className="empty-state"><Folder size={30} /><strong>{query ? "No matching files" : "This folder is empty"}</strong><span>{query ? "Try another search term." : "Create a folder or browse to another location."}</span></div>
               : view === "list" ? <div className="file-table">
                 <div className="table-head"><span>NAME</span><span>TYPE</span><span>SIZE</span><span>MODIFIED</span></div>
-                {filteredEntries.map((entry) => <button className={`file-row ${selectedItems.some((item) => item.path === entry.path) ? "selected" : ""}`} key={entry.path} onDoubleClick={() => void openSelectedFile(entry)} onClick={(event) => setSelectedItems((current) => event.ctrlKey || event.metaKey ? (current.some((item) => item.path === entry.path) ? current.filter((item) => item.path !== entry.path) : [...current, entry]) : [entry])}>
+                {filteredEntries.map((entry) => <button className={`file-row ${selectedItems.some((item) => item.path === entry.path) ? "selected" : ""}`} aria-pressed={selectedItems.some((item) => item.path === entry.path)} key={entry.path} onDoubleClick={() => void openSelectedFile(entry)} onClick={(event) => { if (event.shiftKey && selectedItems.length > 0) { const anchor = filteredEntries.findIndex((item) => item.path === selectedItems[0].path); const target = filteredEntries.findIndex((item) => item.path === entry.path); if (anchor >= 0) { const start = Math.min(anchor, target); const end = Math.max(anchor, target); setSelectedItems(filteredEntries.slice(start, end + 1)); } else setSelectedItems([entry]); } else if (event.ctrlKey || event.metaKey) setSelectedItems((current) => current.some((item) => item.path === entry.path) ? current.filter((item) => item.path !== entry.path) : [...current, entry]); else setSelectedItems([entry]); }}>
                   <span className="file-name-cell">{iconFor(entry)}<span>{entry.name}</span></span>
                   <span className="file-type">{entry.isDir ? "Folder" : (entry.extension?.toUpperCase() || "File")}</span>
                   <span className="file-size">{entry.isDir ? "—" : formatBytes(entry.size)}</span>
                   <span className="file-date">{formatDate(entry.modifiedAt)}</span>
                 </button>)}
-              </div> : <div className="file-grid">{filteredEntries.map((entry) => <button className={`file-tile ${selectedItems.some((item) => item.path === entry.path) ? "selected" : ""}`} key={entry.path} onClick={(event) => setSelectedItems((current) => event.ctrlKey || event.metaKey ? (current.some((item) => item.path === entry.path) ? current.filter((item) => item.path !== entry.path) : [...current, entry]) : [entry])} onDoubleClick={() => void openSelectedFile(entry)}>{iconFor(entry)}<span>{entry.name}</span><small>{entry.isDir ? "Folder" : formatBytes(entry.size)}</small></button>)}</div>}
+              </div> : <div className="file-grid">{filteredEntries.map((entry) => <button className={`file-tile ${selectedItems.some((item) => item.path === entry.path) ? "selected" : ""}`} aria-pressed={selectedItems.some((item) => item.path === entry.path)} key={entry.path} onClick={(event) => { if (event.shiftKey && selectedItems.length > 0) { const anchor = filteredEntries.findIndex((item) => item.path === selectedItems[0].path); const target = filteredEntries.findIndex((item) => item.path === entry.path); if (anchor >= 0) { const start = Math.min(anchor, target); const end = Math.max(anchor, target); setSelectedItems(filteredEntries.slice(start, end + 1)); } else setSelectedItems([entry]); } else if (event.ctrlKey || event.metaKey) setSelectedItems((current) => current.some((item) => item.path === entry.path) ? current.filter((item) => item.path !== entry.path) : [...current, entry]); else setSelectedItems([entry]); }} onDoubleClick={() => void openSelectedFile(entry)}>{iconFor(entry)}<span>{entry.name}</span><small>{entry.isDir ? "Folder" : formatBytes(entry.size)}</small></button>)}</div>}
           </div>
           <footer className="statusbar"><span>{loading ? "Reading directory…" : `${filteredEntries.length} items`}</span><span><span className="status-dot" /> {isBrowserFileMode() ? "Folder access stays in this browser session" : "Files are accessed locally on this device"}</span></footer>
         </div>

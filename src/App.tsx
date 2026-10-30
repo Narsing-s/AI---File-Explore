@@ -1,9 +1,9 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { isBrowserFileMode, makeFolder, openHomeDirectory, parentDirectory, readDirectory, type FileEntry } from "./platform/filesystem";
+import { isBrowserFileMode, makeFolder, openHomeDirectory, parentDirectory, readDirectory, openFile, renameEntry, deleteEntry, type FileEntry } from "./platform/filesystem";
 import {
-  ArrowLeft, ArrowRight, ChevronRight, Command, File, FileImage,
+  ArrowLeft, Copy, ChevronRight, Command, File, FileImage,
   FileText, Folder, FolderPlus, HardDrive, Home, LayoutGrid, List, LoaderCircle,
-  Moon, MoreHorizontal, RefreshCw, Search, Sparkles, Sun,
+  Moon, RefreshCw, Search, Sparkles, Sun,
   Video, Music2, FileArchive, FileCode2
 } from "lucide-react";
 
@@ -43,6 +43,7 @@ function App() {
   const [error, setError] = useState("");
   const [view, setView] = useState<"grid" | "list">("list");
   const [toast, setToast] = useState("");
+  const [selected, setSelected] = useState<Entry | null>(null);
 
   useEffect(() => {
     document.documentElement.dataset.theme = theme;
@@ -61,6 +62,18 @@ function App() {
     } finally {
       setLoading(false);
     }
+  }, []);
+
+  useEffect(() => {
+    const onKeyDown = (event: KeyboardEvent) => {
+      if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === "k") {
+        event.preventDefault();
+        document.getElementById("global-search")?.focus();
+      }
+      if (event.key === "Escape") setSelected(null);
+    };
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
   }, []);
 
   useEffect(() => {
@@ -85,6 +98,7 @@ function App() {
   const parentPath = parentDirectory(currentPath);
 
   const navigate = (path: string) => {
+    setSelected(null);
     setQuery("");
     void loadDirectory(path);
   };
@@ -97,6 +111,56 @@ function App() {
       if (String(err).toLowerCase().includes("abort")) return;
       setError(String(err));
     }
+  };
+
+  const renameSelected = async () => {
+    if (!selected) return;
+    const nextName = window.prompt("Rename item", selected.name);
+    if (!nextName?.trim() || nextName.trim() === selected.name) return;
+    try {
+      await renameEntry(selected.path, nextName);
+      setSelected(null);
+      await loadDirectory(currentPath);
+      setToast("Item renamed");
+      window.setTimeout(() => setToast(""), 2600);
+    } catch (err) { setError(String(err)); }
+  };
+
+  const deleteSelected = async () => {
+    if (!selected) return;
+    const kind = selected.isDir ? "folder and all its contents" : "file";
+    if (!window.confirm(`Permanently delete this ${kind}?\n\n${selected.name}`)) return;
+    try {
+      await deleteEntry(selected.path);
+      setSelected(null);
+      await loadDirectory(currentPath);
+      setToast("Item deleted");
+      window.setTimeout(() => setToast(""), 2600);
+    } catch (err) { setError(String(err)); }
+  };
+
+  const openSelectedFile = async (entry: Entry) => {
+    if (entry.isDir) { navigate(entry.path); return; }
+    try { await openFile(entry.path); }
+    catch (err) { setError(String(err)); }
+  };
+
+  const copyCurrentPath = async () => {
+    if (!currentPath) return;
+    try {
+      await navigator.clipboard.writeText(currentPath);
+      setToast("Current path copied");
+      window.setTimeout(() => setToast(""), 2600);
+    } catch { setError("Clipboard access is unavailable in this context."); }
+  };
+
+  const copySelectedPath = async () => {
+    if (!selected) return;
+    try {
+      await navigator.clipboard.writeText(selected.path);
+      setToast("Path copied");
+      window.setTimeout(() => setToast(""), 2600);
+    } catch { setError("Clipboard access is unavailable in this context."); }
   };
 
   const createFolder = async () => {
@@ -128,7 +192,7 @@ function App() {
 
         <div className="nav-section">
           <div className="section-label">WORKSPACE</div>
-          <button className="nav-item active"><Home size={17} /><span>Home</span></button>
+          <button className="nav-item active" onClick={async () => { try { const home = await openHomeDirectory(); await loadDirectory(home); } catch (err) { if (!String(err).toLowerCase().includes("abort")) setError(String(err)); } }}><Home size={17} /><span>Home</span></button>
         </div>
 
         <div className="sidebar-bottom">
@@ -138,7 +202,7 @@ function App() {
             <p>Local-first intelligence for your files. Your data stays on your device.</p>
             <span className="ai-status"><span /> CORE BUILD</span>
           </div>
-          <div className="profile-row"><div className="profile-avatar">N</div><div className="profile-copy"><strong>Local workspace</strong><span>Private by design</span></div><MoreHorizontal size={18} /></div>
+          <div className="profile-row"><div className="profile-avatar">N</div><div className="profile-copy"><strong>Local workspace</strong><span>Private by design</span></div></div>
         </div>
       </aside>
 
@@ -186,24 +250,26 @@ function App() {
 
           <div className="path-bar">
             <button disabled={!currentPath || parentPath === currentPath} onClick={() => navigate(parentPath)} title="Go to parent"><ArrowLeft size={15} /></button>
-            <button disabled={!currentPath} onClick={() => navigate(currentPath)} title="Refresh"><RefreshCw size={14} /></button>
+            
             <span className="path-text">{currentPath || "Loading location..."}</span>
-            <button disabled={!currentPath} onClick={() => navigate(currentPath)} title="Open current location"><ArrowRight size={15} /></button>
+            <button disabled={!currentPath} onClick={copyCurrentPath} title="Copy current path"><Copy size={14} /></button>
           </div>
 
           {error && <div className="error-banner">{error}</div>}
+          {selected && <div className="path-bar selection-actions"><strong>{selected.name}</strong><span>{selected.isDir ? "Folder" : "File"} selected</span><button onClick={copySelectedPath}>Copy path</button><button onClick={renameSelected} disabled={isBrowserFileMode() && selected.isDir} title={isBrowserFileMode() && selected.isDir ? "Folder rename is not supported by this browser" : "Rename selected item"}>Rename</button><button onClick={deleteSelected}>Delete</button><button onClick={() => setSelected(null)} title="Clear selection">Clear</button></div>}
+
           <div className="file-area">
             {loading ? <div className="empty-state"><LoaderCircle className="spinner" size={25} /><strong>Loading your files</strong><span>Reading this folder from your device…</span></div>
               : filteredEntries.length === 0 ? <div className="empty-state"><Folder size={30} /><strong>{query ? "No matching files" : "This folder is empty"}</strong><span>{query ? "Try another search term." : "Create a folder or browse to another location."}</span></div>
               : view === "list" ? <div className="file-table">
                 <div className="table-head"><span>NAME</span><span>TYPE</span><span>SIZE</span><span>MODIFIED</span></div>
-                {filteredEntries.map((entry) => <button className="file-row" key={entry.path} onDoubleClick={() => entry.isDir && navigate(entry.path)} onClick={() => entry.isDir && setToast(`Folder selected: ${entry.name}`)}>
+                {filteredEntries.map((entry) => <button className="file-row" key={entry.path} onDoubleClick={() => void openSelectedFile(entry)} onClick={() => setSelected(entry)}>
                   <span className="file-name-cell">{iconFor(entry)}<span>{entry.name}</span></span>
                   <span className="file-type">{entry.isDir ? "Folder" : (entry.extension?.toUpperCase() || "File")}</span>
                   <span className="file-size">{entry.isDir ? "—" : formatBytes(entry.size)}</span>
                   <span className="file-date">{formatDate(entry.modifiedAt)}</span>
                 </button>)}
-              </div> : <div className="file-grid">{filteredEntries.map((entry) => <button className="file-tile" key={entry.path} onDoubleClick={() => entry.isDir && navigate(entry.path)}>{iconFor(entry)}<span>{entry.name}</span><small>{entry.isDir ? "Folder" : formatBytes(entry.size)}</small></button>)}</div>}
+              </div> : <div className="file-grid">{filteredEntries.map((entry) => <button className="file-tile" key={entry.path} onClick={() => setSelected(entry)} onDoubleClick={() => void openSelectedFile(entry)}>{iconFor(entry)}<span>{entry.name}</span><small>{entry.isDir ? "Folder" : formatBytes(entry.size)}</small></button>)}</div>}
           </div>
           <footer className="statusbar"><span>{loading ? "Reading directory…" : `${filteredEntries.length} items`}</span><span><span className="status-dot" /> {isBrowserFileMode() ? "Folder access stays in this browser session" : "Files are accessed locally on this device"}</span></footer>
         </div>

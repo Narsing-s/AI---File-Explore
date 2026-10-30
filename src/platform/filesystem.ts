@@ -21,7 +21,7 @@ type BrowserDirectoryHandle = {
   name: string;
   values(): AsyncIterable<BrowserFileHandle | BrowserDirectoryHandle>;
   getDirectoryHandle(name: string, options?: { create?: boolean }): Promise<BrowserDirectoryHandle>;
-  getFileHandle(name: string): Promise<BrowserFileHandle>;
+  getFileHandle(name: string, options?: { create?: boolean }): Promise<BrowserFileHandle>;
   removeEntry(name: string, options?: { recursive?: boolean }): Promise<void>;
 };
 
@@ -88,6 +88,25 @@ export async function readDirectory(path: string): Promise<FileEntry[]> {
   );
 }
 
+export async function openFile(path: string): Promise<void> {
+  if (isNative()) return invoke<void>("open_file", { path });
+  const separator = path.lastIndexOf("/");
+  const parent = path.slice(0, separator);
+  const name = path.slice(separator + 1);
+  const directory = browserDirectories.get(parent);
+  if (!directory) throw new Error("Choose the parent folder again to restore access.");
+  const handle = await directory.getFileHandle(name);
+  const file = await handle.getFile();
+  const url = URL.createObjectURL(file);
+  const opened = window.open(url, "_blank");
+  if (opened) opened.opener = null;
+  if (!opened) {
+    URL.revokeObjectURL(url);
+    throw new Error("The browser blocked the preview tab. Allow pop-ups for this site and try again.");
+  }
+  window.setTimeout(() => URL.revokeObjectURL(url), 60_000);
+}
+
 export async function renameEntry(path: string, newName: string): Promise<string> {
   const trimmed = newName.trim();
   if (!trimmed || trimmed === "." || trimmed === ".." || /[\\/]/.test(trimmed)) {
@@ -109,17 +128,20 @@ export async function renameEntry(path: string, newName: string): Promise<string
   }
   const source = await directory.getFileHandle(oldName);
   const file = await source.getFile();
-  const destination = await directory.getFileHandle(trimmed).catch(async () => {
-    const createDirectory = directory as BrowserDirectoryHandle & {
-      getFileHandle(name: string, options: { create: true }): Promise<BrowserFileHandle>
-    };
-    return createDirectory.getFileHandle(trimmed, { create: true });
-  });
+  try {
+    await directory.getFileHandle(trimmed);
+    throw new Error("An item with that name already exists.");
+  } catch (error) {
+    if (error instanceof Error && error.message === "An item with that name already exists.") throw error;
+    if (!(error instanceof DOMException) || error.name !== "NotFoundError") throw error;
+  }
+  const destination = await directory.getFileHandle(trimmed, { create: true });
   const writable = await destination.createWritable();
   try {
     await writable.write(file);
     await writable.close();
   } catch (error) {
+    await directory.removeEntry(trimmed).catch(() => undefined);
     throw error;
   }
   await directory.removeEntry(oldName);
@@ -150,6 +172,13 @@ export async function makeFolder(parent: string, name: string): Promise<string> 
   const directory = browserDirectories.get(parent);
   if (!directory) throw new Error("Choose the parent folder again to restore access.");
 
+  try {
+    await directory.getDirectoryHandle(trimmed);
+    throw new Error("A folder with that name already exists.");
+  } catch (error) {
+    if (error instanceof Error && error.message === "A folder with that name already exists.") throw error;
+    if (!(error instanceof DOMException) || error.name !== "NotFoundError") throw error;
+  }
   const child = await directory.getDirectoryHandle(trimmed, { create: true });
   const childPath = `${parent}/${trimmed}`;
   browserDirectories.set(childPath, child);

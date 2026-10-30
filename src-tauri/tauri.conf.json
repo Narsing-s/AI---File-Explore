@@ -28,6 +28,7 @@
     "active": true,
     "targets": "all",
     "category": "Utility",
-    "shortDescription": "Local-first intelligent file manager"
+    "shortDescription": "Local-first intelligent file manager",
+    "icon": []
   }
 }

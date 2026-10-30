@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { invoke } from "@tauri-apps/api/core";
+import { isBrowserFileMode, makeFolder, openHomeDirectory, parentDirectory, readDirectory, type FileEntry } from "./platform/filesystem";
 import {
   ArrowLeft, ArrowRight, ChevronRight, Command, File, FileImage,
   FileText, Folder, FolderPlus, HardDrive, Home, LayoutGrid, List, LoaderCircle,
@@ -7,14 +7,7 @@ import {
   Video, Music2, FileArchive, FileCode2
 } from "lucide-react";
 
-type Entry = {
-  name: string;
-  path: string;
-  isDir: boolean;
-  size: number;
-  modifiedAt: number | null;
-  extension: string | null;
-};
+type Entry = FileEntry;
 
 type Theme = "dark" | "light";
 
@@ -60,7 +53,7 @@ function App() {
     setLoading(true);
     setError("");
     try {
-      const result = await invoke<Entry[]>("list_directory", { path });
+      const result = await readDirectory(path);
       setEntries(result);
       setCurrentPath(path);
     } catch (err) {
@@ -71,7 +64,11 @@ function App() {
   }, []);
 
   useEffect(() => {
-    invoke<string>("home_directory")
+    if (isBrowserFileMode()) {
+      setLoading(false);
+      return;
+    }
+    openHomeDirectory()
       .then(loadDirectory)
       .catch((err) => {
         setError(String(err));
@@ -85,7 +82,7 @@ function App() {
 
   const folders = entries.filter((entry) => entry.isDir).length;
   const files = entries.length - folders;
-  const parentPath = currentPath.replace(/[\\/]+$/, "").replace(/[\\/][^\\/]*$/, "") || currentPath;
+  const parentPath = parentDirectory(currentPath);
 
   const navigate = (path: string) => {
     setQuery("");
@@ -106,7 +103,7 @@ function App() {
     const name = window.prompt("New folder name");
     if (!name?.trim()) return;
     try {
-      await invoke("create_folder", { parent: currentPath, name });
+      await makeFolder(currentPath, name);
       await loadDirectory(currentPath);
       setToast("Folder created");
       window.setTimeout(() => setToast(""), 2600);
@@ -151,7 +148,7 @@ function App() {
             <span>Workspace</span><ChevronRight size={14} /><strong>{locationName}</strong>
           </div>
           <div className="top-actions">
-            <div className="privacy-pill"><span /> LOCAL STORAGE</div>
+            <div className="privacy-pill"><span /> {isBrowserFileMode() ? "BROWSER FOLDER ACCESS" : "LOCAL STORAGE"}</div>
             <button className="icon-button" title="Toggle theme" onClick={() => setTheme(theme === "dark" ? "light" : "dark")}>
               {theme === "dark" ? <Sun size={17} /> : <Moon size={17} />}
             </button>
@@ -180,7 +177,7 @@ function App() {
           </div>
 
           <div className="explorer-heading">
-            <div><h2>Browse files</h2><p>Explore folders on your device</p></div>
+            <div><h2>Browse files</h2><p>{isBrowserFileMode() ? "Choose a folder on this device to browse in your browser" : "Explore folders on your device"}</p></div>
             <div className="explorer-tools">
               <div className="search-box"><Search size={16} /><input id="global-search" value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Search this folder..." /><kbd>⌘ K</kbd></div>
               <div className="view-toggle"><button className={view === "list" ? "selected" : ""} onClick={() => setView("list")} title="List view"><List size={17} /></button><button className={view === "grid" ? "selected" : ""} onClick={() => setView("grid")} title="Grid view"><LayoutGrid size={17} /></button></div>
@@ -208,7 +205,7 @@ function App() {
                 </button>)}
               </div> : <div className="file-grid">{filteredEntries.map((entry) => <button className="file-tile" key={entry.path} onDoubleClick={() => entry.isDir && navigate(entry.path)}>{iconFor(entry)}<span>{entry.name}</span><small>{entry.isDir ? "Folder" : formatBytes(entry.size)}</small></button>)}</div>}
           </div>
-          <footer className="statusbar"><span>{loading ? "Reading directory…" : `${filteredEntries.length} items`}</span><span><span className="status-dot" /> Files are accessed locally on this device</span></footer>
+          <footer className="statusbar"><span>{loading ? "Reading directory…" : `${filteredEntries.length} items`}</span><span><span className="status-dot" /> {isBrowserFileMode() ? "Folder access stays in this browser session" : "Files are accessed locally on this device"}</span></footer>
         </div>
       </section>
       {toast && <div className="toast">{toast}</div>}

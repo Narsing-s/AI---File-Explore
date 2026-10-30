@@ -122,6 +122,7 @@ export async function renameEntry(path: string, newName: string): Promise<string
     await writable.write(file);
     await writable.close();
   } catch (error) {
+    await directory.removeEntry(trimmed).catch(() => undefined);
     throw error;
   }
   await directory.removeEntry(oldName);
@@ -152,6 +153,13 @@ export async function makeFolder(parent: string, name: string): Promise<string> 
   const directory = browserDirectories.get(parent);
   if (!directory) throw new Error("Choose the parent folder again to restore access.");
 
+  try {
+    await directory.getDirectoryHandle(trimmed);
+    throw new Error("A folder with that name already exists.");
+  } catch (error) {
+    if (error instanceof Error && error.message === "A folder with that name already exists.") throw error;
+    if (!(error instanceof DOMException) || error.name !== "NotFoundError") throw error;
+  }
   const child = await directory.getDirectoryHandle(trimmed, { create: true });
   const childPath = `${parent}/${trimmed}`;
   browserDirectories.set(childPath, child);

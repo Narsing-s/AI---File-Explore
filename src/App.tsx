@@ -3,8 +3,8 @@ import { invoke } from "@tauri-apps/api/core";
 import {
   ArrowLeft, ArrowRight, ChevronRight, Command, File, FileImage,
   FileText, Folder, FolderPlus, HardDrive, Home, LayoutGrid, List, LoaderCircle,
-  Moon, MoreHorizontal, RefreshCw, Search, Settings2, Sparkles, Sun,
-  Video, Music2, FileArchive, FileCode2, Clock3
+  Moon, MoreHorizontal, RefreshCw, Search, Sparkles, Sun,
+  Video, Music2, FileArchive, FileCode2
 } from "lucide-react";
 
 type Entry = {
@@ -122,14 +122,6 @@ function App() {
         <div className="nav-section">
           <div className="section-label">WORKSPACE</div>
           <button className="nav-item active"><Home size={17} /><span>Home</span></button>
-          <button className="nav-item" onClick={() => currentPath && navigate(currentPath)}><Folder size={17} /><span>All files</span></button>
-          <button className="nav-item" onClick={() => setToast("Recent files will be added in the next milestone")}><Clock3 size={17} /><span>Recent</span><span className="nav-soon">Soon</span></button>
-        </div>
-
-        <div className="nav-section">
-          <div className="section-label">QUICK ACCESS</div>
-          <button className="nav-item" onClick={() => currentPath && navigate(currentPath)}><Folder size={17} /><span>Current folder</span></button>
-          <button className="nav-item" onClick={() => setToast("Favorites are coming in a later milestone")}><Sparkles size={17} /><span>Favorites</span><span className="nav-soon">Soon</span></button>
         </div>
 
         <div className="sidebar-bottom">
@@ -139,7 +131,6 @@ function App() {
             <p>Local-first intelligence for your files. Your data stays on your device.</p>
             <span className="ai-status"><span /> CORE BUILD</span>
           </div>
-          <button className="nav-item settings-item" onClick={() => setToast("Settings panel is planned for the next milestone")}><Settings2 size={17} /><span>Settings</span></button>
           <div className="profile-row"><div className="profile-avatar">N</div><div className="profile-copy"><strong>Local workspace</strong><span>Private by design</span></div><MoreHorizontal size={18} /></div>
         </div>
       </aside>

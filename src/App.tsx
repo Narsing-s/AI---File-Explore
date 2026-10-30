@@ -98,10 +98,14 @@ function App() {
       } else if (event.key === "Escape") {
         setSelectedItems([]);
       }
+      else if ((event.ctrlKey || event.metaKey) && key === "a" && !typing) {
+        event.preventDefault();
+        setSelectedItems(filteredEntries);
+      }
     };
     window.addEventListener("keydown", onKeyDown);
     return () => window.removeEventListener("keydown", onKeyDown);
-  }, [selected, clipboard]);
+  }, [selectedItems, clipboard, filteredEntries]);
 
   useEffect(() => {
     if (isBrowserFileMode()) {
@@ -170,7 +174,8 @@ function App() {
       } catch { failed.push(entry); }
     }
     await loadDirectory(currentPath);
-    if (clipboard.mode === "cut") setClipboard(failed.length ? { entries: failed, mode: "cut" } : null);
+    if (failed.length) setClipboard({ entries: failed, mode: clipboard.mode });
+    else if (clipboard.mode === "cut") setClipboard(null);
     if (failed.length) setError(`${failed.length} of ${clipboard.entries.length} item(s) could not be processed. Failed items remain in the clipboard for retry.`);
     else setToast(`${clipboard.entries.length} item(s) ${clipboard.mode === "copy" ? "copied" : "moved"}`);
     window.setTimeout(() => setToast(""), 2600);

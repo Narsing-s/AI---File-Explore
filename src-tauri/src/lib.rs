@@ -91,7 +91,7 @@ fn create_folder(parent: String, name: String) -> Result<String, String> {
 fn rename_entry(path: String, new_name: String) -> Result<String, String> {
     let trimmed = new_name.trim();
     if trimmed.is_empty() || trimmed == "." || trimmed == ".."
-        || trimmed.contains('/') || trimmed.contains('\\\\')
+        || trimmed.contains('/') || trimmed.contains('\\')
         || trimmed.chars().any(|c| c.is_control()) {
         return Err("Enter a valid name without path separators.".to_string());
     }

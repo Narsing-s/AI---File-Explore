@@ -255,3 +255,65 @@ pub fn run() {
         .run(tauri::generate_context!())
         .expect("error while running Nova AI File Manager");
 }
+
+
+#[cfg(test)]
+mod filesystem_tests {
+    use super::*;
+    use std::time::{SystemTime, UNIX_EPOCH};
+
+    fn sandbox() -> PathBuf {
+        let nonce = SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_nanos();
+        let path = std::env::temp_dir().join(format!("nova-file-manager-test-{}-{nonce}", std::process::id()));
+        fs::create_dir_all(&path).unwrap();
+        path
+    }
+
+    #[test]
+    fn recursively_copies_folder_contents() {
+        let root = sandbox();
+        let source = root.join("source");
+        let nested = source.join("nested");
+        let destination = root.join("destination");
+        fs::create_dir_all(&nested).unwrap();
+        fs::create_dir_all(&destination).unwrap();
+        fs::write(nested.join("hello.txt"), "hello nova").unwrap();
+
+        let copied = copy_entry(source.to_string_lossy().into_owned(), destination.to_string_lossy().into_owned()).unwrap();
+        assert_eq!(fs::read_to_string(Path::new(&copied).join("nested/hello.txt")).unwrap(), "hello nova");
+        assert!(source.exists());
+        fs::remove_dir_all(root).unwrap();
+    }
+
+    #[test]
+    fn moves_file_and_preserves_contents() {
+        let root = sandbox();
+        let source_dir = root.join("source");
+        let destination = root.join("destination");
+        fs::create_dir_all(&source_dir).unwrap();
+        fs::create_dir_all(&destination).unwrap();
+        let source = source_dir.join("notes.txt");
+        fs::write(&source, "move me").unwrap();
+
+        let moved = move_entry(source.to_string_lossy().into_owned(), destination.to_string_lossy().into_owned()).unwrap();
+        assert!(!source.exists());
+        assert_eq!(fs::read_to_string(moved).unwrap(), "move me");
+        fs::remove_dir_all(root).unwrap();
+    }
+
+    #[test]
+    fn refuses_overwriting_existing_destination() {
+        let root = sandbox();
+        let source_dir = root.join("source");
+        let destination = root.join("destination");
+        fs::create_dir_all(&source_dir).unwrap();
+        fs::create_dir_all(&destination).unwrap();
+        fs::write(source_dir.join("same.txt"), "source").unwrap();
+        fs::write(destination.join("same.txt"), "destination").unwrap();
+
+        let result = copy_entry(source_dir.join("same.txt").to_string_lossy().into_owned(), destination.to_string_lossy().into_owned());
+        assert!(result.is_err());
+        assert_eq!(fs::read_to_string(destination.join("same.txt")).unwrap(), "destination");
+        fs::remove_dir_all(root).unwrap();
+    }
+}

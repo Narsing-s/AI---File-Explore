@@ -155,6 +155,9 @@ fn move_entry(path: String, destination_directory: String) -> Result<String, Str
         return Err("This item type cannot be moved.".to_string());
     }
     let destination_directory = Path::new(&destination_directory);
+    if source.parent() == Some(destination_directory) {
+        return Ok(path);
+    }
     let destination = destination_for(source, destination_directory)?;
     if source_metadata.file_type().is_dir() {
         let source_real = fs::canonicalize(source).map_err(|e| format!("Cannot resolve source folder: {e}"))?;

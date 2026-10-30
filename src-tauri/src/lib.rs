@@ -95,7 +95,7 @@ fn open_file(path: String) -> Result<(), String> {
         return Err("The selected file is unavailable or is not a regular file".to_string());
     }
     #[cfg(target_os = "windows")]
-    let result = Command::new("cmd").args(["/C", "start", "", &path]).spawn();
+    let result = Command::new("explorer.exe").arg(&path).spawn();
     #[cfg(target_os = "macos")]
     let result = Command::new("open").arg(&path).spawn();
     #[cfg(all(not(target_os = "windows"), not(target_os = "macos")))]

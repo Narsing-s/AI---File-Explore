@@ -1,7 +1,11 @@
 import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react";
 
+const runtimeProcess = (globalThis as { process?: { env?: Record<string, string | undefined> } }).process;
+const isGitHubPages = runtimeProcess?.env?.GITHUB_PAGES === "true";
+
 export default defineConfig({
+  base: isGitHubPages ? "/AI---File-Explore/" : "/",
   plugins: [react()],
   clearScreen: false,
   server: {

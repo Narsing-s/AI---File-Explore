@@ -107,6 +107,81 @@ export async function openFile(path: string): Promise<void> {
   window.setTimeout(() => URL.revokeObjectURL(url), 60_000);
 }
 
+
+async function browserEntryExists(parent: BrowserDirectoryHandle, name: string): Promise<boolean> {
+  for (const kind of ["file", "directory"] as const) {
+    try {
+      if (kind === "file") await parent.getFileHandle(name);
+      else await parent.getDirectoryHandle(name);
+      return true;
+    } catch (error) {
+      if (!(error instanceof DOMException) || !["NotFoundError", "TypeMismatchError"].includes(error.name)) throw error;
+    }
+  }
+  return false;
+}
+
+async function copyBrowserEntry(source: BrowserDirectoryHandle, sourceName: string, destination: BrowserDirectoryHandle, destinationName: string): Promise<void> {
+  let fileHandle: BrowserFileHandle | null = null;
+  let directoryHandle: BrowserDirectoryHandle | null = null;
+  try { fileHandle = await source.getFileHandle(sourceName); }
+  catch (error) {
+    if (!(error instanceof DOMException) || !["NotFoundError", "TypeMismatchError"].includes(error.name)) throw error;
+  }
+  if (fileHandle) {
+    const file = await fileHandle.getFile();
+    const target = await destination.getFileHandle(destinationName, { create: true });
+    const writable = await target.createWritable();
+    try { await writable.write(file); await writable.close(); }
+    catch (error) { await destination.removeEntry(destinationName).catch(() => undefined); throw error; }
+    return;
+  }
+  directoryHandle = await source.getDirectoryHandle(sourceName);
+  const targetDirectory = await destination.getDirectoryHandle(destinationName, { create: true });
+  try {
+    for await (const child of directoryHandle.values()) {
+      await copyBrowserEntry(directoryHandle, child.name, targetDirectory, child.name);
+    }
+  } catch (error) {
+    await destination.removeEntry(destinationName, { recursive: true }).catch(() => undefined);
+    throw error;
+  }
+}
+
+export async function copyEntry(path: string, destinationDirectory: string): Promise<string> {
+  if (isNative()) return invoke<string>("copy_entry", { path, destinationDirectory });
+  const separator = path.lastIndexOf("/");
+  const parentPath = path.slice(0, separator);
+  const name = path.slice(separator + 1);
+  const sourceParent = browserDirectories.get(parentPath);
+  const destination = browserDirectories.get(destinationDirectory);
+  if (!sourceParent || !destination) throw new Error("Choose the source and destination folders again to restore access.");
+  if (await browserEntryExists(destination, name)) throw new Error("An item with that name already exists in the destination.");
+  await copyBrowserEntry(sourceParent, name, destination, name);
+  return `${destinationDirectory}/${name}`;
+}
+
+export async function moveEntry(path: string, destinationDirectory: string): Promise<string> {
+  if (isNative()) return invoke<string>("move_entry", { path, destinationDirectory });
+  const separator = path.lastIndexOf("/");
+  const parentPath = path.slice(0, separator);
+  const name = path.slice(separator + 1);
+  const sourceParent = browserDirectories.get(parentPath);
+  const destination = browserDirectories.get(destinationDirectory);
+  if (!sourceParent || !destination) throw new Error("Choose the source and destination folders again to restore access.");
+  if (path === destinationDirectory || destinationDirectory.startsWith(`${path}/`)) {
+    throw new Error("An item cannot be moved into itself or one of its subfolders.");
+  }
+  if (parentPath === destinationDirectory) return path;
+  if (await browserEntryExists(destination, name)) throw new Error("An item with that name already exists in the destination.");
+  await copyBrowserEntry(sourceParent, name, destination, name);
+  await sourceParent.removeEntry(name, { recursive: true });
+  for (const key of browserDirectories.keys()) {
+    if (key === path || key.startsWith(`${path}/`)) browserDirectories.delete(key);
+  }
+  return `${destinationDirectory}/${name}`;
+}
+
 export async function renameEntry(path: string, newName: string): Promise<string> {
   const trimmed = newName.trim();
   if (!trimmed || trimmed === "." || trimmed === ".." || /[\\/]/.test(trimmed)) {

@@ -100,12 +100,12 @@ function App() {
       }
       else if ((event.ctrlKey || event.metaKey) && key === "a" && !typing) {
         event.preventDefault();
-        setSelectedItems(filteredEntries);
+        setSelectedItems(entries.filter((entry) => (showHidden || !entry.name.startsWith(".")) && entry.name.toLocaleLowerCase().includes(query.toLocaleLowerCase())));
       }
     };
     window.addEventListener("keydown", onKeyDown);
     return () => window.removeEventListener("keydown", onKeyDown);
-  }, [selectedItems, clipboard, filteredEntries]);
+  }, [selectedItems, clipboard, entries, showHidden, query]);
 
   useEffect(() => {
     if (isBrowserFileMode()) {

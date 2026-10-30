@@ -32,7 +32,7 @@ A local-first file manager built with React, TypeScript, Tauri 2 and Rust, with 
 - Copy and move files/folders, including recursive folder copy and collision checks.
 - Permanent delete with explicit confirmation.
 - Keyboard shortcuts: Ctrl/Cmd+K search, Ctrl/Cmd+A select visible items, Ctrl/Cmd+C copy, Ctrl/Cmd+X cut, Ctrl/Cmd+V paste, F2 rename a single item and Delete remove selected items.
-- Multi-select files and folders with Ctrl/Cmd-click in list or grid view; batch copy, cut/move, paste and permanent delete. Failed batch items remain available for retry.
+- Multi-select files and folders with Ctrl/Cmd-click, select a contiguous range with Shift-click, or select all visible matches with Ctrl/Cmd+A in list or grid view; batch copy, cut/move, paste and permanent delete. Failed batch items remain available for retry.
 - Search within the currently displayed directory.
 - Sort by name, type, size or modified date; toggle ascending/descending order.
 - Show or hide dot-prefixed hidden files.

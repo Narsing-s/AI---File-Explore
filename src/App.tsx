@@ -154,7 +154,7 @@ function App() {
     } catch (err) { setError(String(err)); }
   };
 
-  const createFolder = async () => {
+  const renameSelected = async () => {
     if (!selected) return;
     const nextName = window.prompt("Rename item", selected.name);
     if (!nextName?.trim() || nextName.trim() === selected.name) return;

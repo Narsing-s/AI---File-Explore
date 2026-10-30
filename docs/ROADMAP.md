@@ -11,10 +11,10 @@
 - [x] Web build and GitHub Pages deployment workflow
 
 ## Milestone 1 — Reliable cross-platform explorer
-- [ ] Single-click selection, keyboard navigation and accessible focus states
+- [x] Single-click selection and core keyboard shortcuts (accessibility audit still required)
 - [ ] Location picker and pinned/favorite locations
-- [ ] Copy, cut, paste, move and rename with collision handling
-- [ ] Delete to trash where supported; confirmation and recovery elsewhere
+- [x] Copy, cut, paste, move and rename with collision handling (desktop; browser file operations supported, folder rename limited)
+- [ ] Recoverable delete-to-trash, restore and permanent-delete management (current delete is permanent with confirmation)
 - [ ] Tabs and dual-pane mode
 - [ ] File properties and safe previews
 - [ ] Browser permission recovery and persistent handle support where supported
@@ -55,7 +55,7 @@
 - [ ] No cloud fallback without consent
 
 ## Milestone 6 — Production readiness
-- [ ] Unit, integration and end-to-end tests
+- [x] Rust filesystem unit tests for recursive copy, move and collision protection\n- [ ] Frontend unit, integration and end-to-end tests
 - [ ] Large-library performance benchmarks
 - [ ] Permission, symlink and path traversal security tests
 - [ ] Interrupted-operation recovery tests

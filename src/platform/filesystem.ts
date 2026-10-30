@@ -178,7 +178,12 @@ export async function moveEntry(path: string, destinationDirectory: string): Pro
   if (parentPath === destinationDirectory) return path;
   if (await browserEntryExists(destination, name)) throw new Error("An item with that name already exists in the destination.");
   await copyBrowserEntry(sourceParent, name, destination, name);
-  await sourceParent.removeEntry(name, { recursive: true });
+  try {
+    await sourceParent.removeEntry(name, { recursive: true });
+  } catch (error) {
+    await destination.removeEntry(name, { recursive: true }).catch(() => undefined);
+    throw new Error(`The item was copied but the original could not be removed. The destination copy was rolled back where possible: ${String(error)}`);
+  }
   for (const key of browserDirectories.keys()) {
     if (key === path || key.startsWith(`${path}/`)) browserDirectories.delete(key);
   }
@@ -222,7 +227,12 @@ export async function renameEntry(path: string, newName: string): Promise<string
     await directory.removeEntry(trimmed).catch(() => undefined);
     throw error;
   }
-  await directory.removeEntry(oldName);
+  try {
+    await directory.removeEntry(oldName);
+  } catch (error) {
+    await directory.removeEntry(trimmed).catch(() => undefined);
+    throw new Error(`The new copy was created but the original could not be removed. The rename was rolled back where possible: ${String(error)}`);
+  }
   return `${parent}/${trimmed}`;
 }
 

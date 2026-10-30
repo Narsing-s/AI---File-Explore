@@ -6,9 +6,9 @@ A local-first file manager built with React, TypeScript, Tauri 2 and Rust, with 
 
 | Platform | Current capability | Status |
 |---|---|---|
-| Web (Chrome/Edge) | User-selected folder browsing, metadata, in-folder search, list/grid views, create folder | Browser foundation |
-| Windows | Native home-directory browsing and folder creation | Desktop foundation |
-| Linux | Native home-directory browsing and folder creation | Desktop foundation |
+| Web (Chrome/Edge) | User-selected folder browsing, metadata, in-folder search, list/grid views, create folder, open file, file rename, copy, move, permanent delete | Core browser foundation |
+| Windows | Native home-directory browsing, folder creation, open with default app, rename, copy, move, permanent delete | Desktop foundation |
+| Linux | Native home-directory browsing, folder creation, open with default app, rename, copy, move, permanent delete | Desktop foundation |
 | Android | Tauri mobile entry point exists; Storage Access Framework and Android packaging are not yet implemented | Planned |
 
 **Web privacy:** the browser asks the user to select a folder. Nova reads and creates folders only within the granted browser directory handle. Browser folder handles are held in memory for the current session; users may need to select the folder again after reloading. Browser file access requires a supported secure context and a Chromium-based browser such as current Chrome or Edge.
@@ -27,12 +27,17 @@ A local-first file manager built with React, TypeScript, Tauri 2 and Rust, with 
 - User-selected folder browsing in supported browsers.
 - Directory listing and file metadata.
 - Folder creation.
+- Open files with the system default application (desktop) or a browser tab (web).
+- Rename files and folders on desktop; rename files in supported browsers.
+- Copy and move files/folders, including recursive folder copy and collision checks.
+- Permanent delete with explicit confirmation.
+- Keyboard shortcuts: Ctrl/Cmd+K search, Ctrl/Cmd+C copy, Ctrl/Cmd+X cut, Ctrl/Cmd+V paste, F2 rename and Delete remove.
 - Search within the currently displayed directory.
 - Dark/light themes and list/grid views.
 - Windows and Linux Tauri build workflow.
 - GitHub Pages web build/deployment workflow.
 
-AI, global indexing, copy/move/rename/delete, undo, advanced previews and Android Storage Access Framework integration are not yet implemented. The interface must not imply that staged features are available.
+Global indexing, recoverable trash, undo, advanced previews, tabs, multi-select/batch operations and Android Storage Access Framework integration are not yet implemented. Browser folder rename is not supported by the browser File System Access API. Browser file operations require a supported secure context and a Chromium-based browser such as current Chrome or Edge.
 
 ## Requirements
 
@@ -72,7 +77,7 @@ GitHub Actions builds Windows/Linux desktop bundles and deploys the web build to
 
 ## Privacy and safety
 
-Filesystem access remains local. Browser access is scoped to the folder the user selects. Cloud AI, when introduced, must be explicitly configured and opt-in. Destructive operations must include confirmation, an operation journal and recovery behavior. AI-generated actions must never execute without validation and user approval.
+Filesystem access remains local. Browser access is scoped to the folder the user selects. Cloud AI, when introduced, must be explicitly configured and opt-in. Permanent deletion currently requires confirmation but is not recoverable; a trash/recovery workflow and operation journal are still required before production use. AI-generated actions must never execute without validation and user approval.
 
 ## Status
 

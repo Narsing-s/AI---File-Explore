@@ -2,7 +2,6 @@ use serde::Serialize;
 use std::{
     fs,
     path::{Path, PathBuf},
-    process::Command,
     time::UNIX_EPOCH,
 };
 
@@ -99,9 +98,21 @@ fn copy_path_safely(source: &Path, destination: &Path) -> Result<(), String> {
         fs::copy(source, destination).map(|_| ()).map_err(|e| format!("Could not copy file: {e}"))
     } else if kind.is_dir() {
         fs::create_dir(destination).map_err(|e| format!("Could not create destination folder: {e}"))?;
-        let entries = fs::read_dir(source).map_err(|e| format!("Could not read source folder: {e}"))?;
+        let entries = match fs::read_dir(source) {
+            Ok(entries) => entries,
+            Err(error) => {
+                let _ = fs::remove_dir_all(destination);
+                return Err(format!("Could not read source folder: {error}"));
+            }
+        };
         for entry in entries {
-            let entry = entry.map_err(|e| format!("Could not read source item: {e}"))?;
+            let entry = match entry {
+                Ok(entry) => entry,
+                Err(error) => {
+                    let _ = fs::remove_dir_all(destination);
+                    return Err(format!("Could not read source item: {error}"));
+                }
+            };
             let child_source = entry.path();
             let child_destination = destination.join(entry.file_name());
             if let Err(error) = copy_path_safely(&child_source, &child_destination) {
@@ -121,7 +132,7 @@ fn destination_for(source: &Path, destination_directory: &Path) -> Result<PathBu
     }
     let name = source.file_name().ok_or_else(|| "The selected item has no valid name.".to_string())?;
     let destination = destination_directory.join(name);
-    if destination.exists() {
+    if fs::symlink_metadata(&destination).is_ok() {
         return Err("An item with that name already exists in the destination.".to_string());
     }
     Ok(destination)
@@ -176,7 +187,15 @@ fn move_entry(path: String, destination_directory: String) -> Result<String, Str
                 fs::remove_file(source)
             };
             if let Err(error) = removal {
-                return Err(format!("The item was copied, but the original could not be removed: {error}. Both copies may now exist."));
+                let rollback = if source_metadata.file_type().is_dir() {
+                    fs::remove_dir_all(&destination)
+                } else {
+                    fs::remove_file(&destination)
+                };
+                return Err(match rollback {
+                    Ok(()) => format!("The original could not be removed, so the destination copy was rolled back: {error}"),
+                    Err(rollback_error) => format!("The move was only partially completed. Original removal failed: {error}. Destination rollback also failed: {rollback_error}. Both copies may exist."),
+                });
             }
             Ok(destination.to_string_lossy().into_owned())
         }
@@ -189,13 +208,7 @@ fn open_file(path: String) -> Result<(), String> {
     if !target.is_file() {
         return Err("The selected file is unavailable or is not a regular file".to_string());
     }
-    #[cfg(target_os = "windows")]
-    let result = Command::new("explorer.exe").arg(&path).spawn();
-    #[cfg(target_os = "macos")]
-    let result = Command::new("open").arg(&path).spawn();
-    #[cfg(all(not(target_os = "windows"), not(target_os = "macos")))]
-    let result = Command::new("xdg-open").arg(&path).spawn();
-    result.map(|_| ()).map_err(|e| format!("Could not open file with the system application: {e}"))
+    open::that(target).map_err(|e| format!("Could not open file with the system default application: {e}"))
 }
 
 #[tauri::command]
@@ -261,4 +274,66 @@ pub fn run() {
         ])
         .run(tauri::generate_context!())
         .expect("error while running Nova AI File Manager");
+}
+
+
+#[cfg(test)]
+mod filesystem_tests {
+    use super::*;
+    use std::time::{SystemTime, UNIX_EPOCH};
+
+    fn sandbox() -> PathBuf {
+        let nonce = SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_nanos();
+        let path = std::env::temp_dir().join(format!("nova-file-manager-test-{}-{nonce}", std::process::id()));
+        fs::create_dir_all(&path).unwrap();
+        path
+    }
+
+    #[test]
+    fn recursively_copies_folder_contents() {
+        let root = sandbox();
+        let source = root.join("source");
+        let nested = source.join("nested");
+        let destination = root.join("destination");
+        fs::create_dir_all(&nested).unwrap();
+        fs::create_dir_all(&destination).unwrap();
+        fs::write(nested.join("hello.txt"), "hello nova").unwrap();
+
+        let copied = copy_entry(source.to_string_lossy().into_owned(), destination.to_string_lossy().into_owned()).unwrap();
+        assert_eq!(fs::read_to_string(Path::new(&copied).join("nested/hello.txt")).unwrap(), "hello nova");
+        assert!(source.exists());
+        fs::remove_dir_all(root).unwrap();
+    }
+
+    #[test]
+    fn moves_file_and_preserves_contents() {
+        let root = sandbox();
+        let source_dir = root.join("source");
+        let destination = root.join("destination");
+        fs::create_dir_all(&source_dir).unwrap();
+        fs::create_dir_all(&destination).unwrap();
+        let source = source_dir.join("notes.txt");
+        fs::write(&source, "move me").unwrap();
+
+        let moved = move_entry(source.to_string_lossy().into_owned(), destination.to_string_lossy().into_owned()).unwrap();
+        assert!(!source.exists());
+        assert_eq!(fs::read_to_string(moved).unwrap(), "move me");
+        fs::remove_dir_all(root).unwrap();
+    }
+
+    #[test]
+    fn refuses_overwriting_existing_destination() {
+        let root = sandbox();
+        let source_dir = root.join("source");
+        let destination = root.join("destination");
+        fs::create_dir_all(&source_dir).unwrap();
+        fs::create_dir_all(&destination).unwrap();
+        fs::write(source_dir.join("same.txt"), "source").unwrap();
+        fs::write(destination.join("same.txt"), "destination").unwrap();
+
+        let result = copy_entry(source_dir.join("same.txt").to_string_lossy().into_owned(), destination.to_string_lossy().into_owned());
+        assert!(result.is_err());
+        assert_eq!(fs::read_to_string(destination.join("same.txt")).unwrap(), "destination");
+        fs::remove_dir_all(root).unwrap();
+    }
 }

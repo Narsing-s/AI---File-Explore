@@ -55,6 +55,9 @@ jobs:
       - name: Build frontend
         run: npm run build
 
+      - name: Run Rust filesystem tests
+        run: cargo test --manifest-path src-tauri/Cargo.toml --lib
+
       - name: Build desktop bundles
         run: npm run tauri:build
 

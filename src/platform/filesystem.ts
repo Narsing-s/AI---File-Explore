@@ -161,7 +161,14 @@ export async function copyEntry(path: string, destinationDirectory: string): Pro
   if (!sourceParent || !destination) throw new Error("Choose the source and destination folders again to restore access.");
   if (await browserEntryExists(destination, name)) throw new Error("An item with that name already exists in the destination.");
   await copyBrowserEntry(sourceParent, name, destination, name);
-  return `${destinationDirectory}/${name}`;
+  const targetPath = `${destinationDirectory}/${name}`;
+  try {
+    const copiedDirectory = await destination.getDirectoryHandle(name);
+    browserDirectories.set(targetPath, copiedDirectory);
+  } catch (error) {
+    if (!(error instanceof DOMException) || error.name !== "TypeMismatchError") throw error;
+  }
+  return targetPath;
 }
 
 export async function moveEntry(path: string, destinationDirectory: string): Promise<string> {
@@ -187,7 +194,14 @@ export async function moveEntry(path: string, destinationDirectory: string): Pro
   for (const key of browserDirectories.keys()) {
     if (key === path || key.startsWith(`${path}/`)) browserDirectories.delete(key);
   }
-  return `${destinationDirectory}/${name}`;
+  const targetPath = `${destinationDirectory}/${name}`;
+  try {
+    const movedDirectory = await destination.getDirectoryHandle(name);
+    browserDirectories.set(targetPath, movedDirectory);
+  } catch (error) {
+    if (!(error instanceof DOMException) || error.name !== "TypeMismatchError") throw error;
+  }
+  return targetPath;
 }
 
 export async function renameEntry(path: string, newName: string): Promise<string> {

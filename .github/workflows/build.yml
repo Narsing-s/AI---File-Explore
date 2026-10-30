@@ -52,6 +52,9 @@ jobs:
       - name: Install frontend dependencies
         run: npm install
 
+      - name: Prepare desktop icons
+        run: npm run pretauri:build
+
       - name: Build frontend
         run: npm run build
 

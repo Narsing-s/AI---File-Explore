@@ -88,6 +88,24 @@ export async function readDirectory(path: string): Promise<FileEntry[]> {
   );
 }
 
+export async function openFile(path: string): Promise<void> {
+  if (isNative()) return invoke<void>("open_file", { path });
+  const separator = path.lastIndexOf("/");
+  const parent = path.slice(0, separator);
+  const name = path.slice(separator + 1);
+  const directory = browserDirectories.get(parent);
+  if (!directory) throw new Error("Choose the parent folder again to restore access.");
+  const handle = await directory.getFileHandle(name);
+  const file = await handle.getFile();
+  const url = URL.createObjectURL(file);
+  const opened = window.open(url, "_blank", "noopener,noreferrer");
+  if (!opened) {
+    URL.revokeObjectURL(url);
+    throw new Error("The browser blocked the preview tab. Allow pop-ups for this site and try again.");
+  }
+  window.setTimeout(() => URL.revokeObjectURL(url), 60_000);
+}
+
 export async function renameEntry(path: string, newName: string): Promise<string> {
   const trimmed = newName.trim();
   if (!trimmed || trimmed === "." || trimmed === ".." || /[\\/]/.test(trimmed)) {

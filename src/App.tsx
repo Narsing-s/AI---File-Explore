@@ -96,7 +96,7 @@ function App() {
     };
     window.addEventListener("keydown", onKeyDown);
     return () => window.removeEventListener("keydown", onKeyDown);
-  }, [selected, clipboard]););
+  }, [selected, clipboard]);
 
   useEffect(() => {
     if (isBrowserFileMode()) {

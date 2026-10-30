@@ -2,7 +2,6 @@ use serde::Serialize;
 use std::{
     fs,
     path::{Path, PathBuf},
-    process::Command,
     time::UNIX_EPOCH,
 };
 
@@ -189,13 +188,7 @@ fn open_file(path: String) -> Result<(), String> {
     if !target.is_file() {
         return Err("The selected file is unavailable or is not a regular file".to_string());
     }
-    #[cfg(target_os = "windows")]
-    let result = Command::new("explorer.exe").arg(&path).spawn();
-    #[cfg(target_os = "macos")]
-    let result = Command::new("open").arg(&path).spawn();
-    #[cfg(all(not(target_os = "windows"), not(target_os = "macos")))]
-    let result = Command::new("xdg-open").arg(&path).spawn();
-    result.map(|_| ()).map_err(|e| format!("Could not open file with the system application: {e}"))
+    open::that(target).map_err(|e| format!("Could not open file with the system default application: {e}"))
 }
 
 #[tauri::command]

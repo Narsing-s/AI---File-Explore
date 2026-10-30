@@ -27,6 +27,10 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
+      - name: Restore application icon
+        shell: bash
+        run: python -c "import base64,pathlib; p=pathlib.Path('src-tauri/icons'); p.mkdir(parents=True,exist_ok=True); (p/'icon.png').write_bytes(base64.b64decode((p/'icon.png.base64').read_text()))"
+
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:

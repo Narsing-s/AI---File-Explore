@@ -92,6 +92,16 @@ function App() {
     void loadDirectory(path);
   };
 
+  const chooseFolder = async () => {
+    try {
+      const path = await openHomeDirectory();
+      await loadDirectory(path);
+    } catch (err) {
+      if (String(err).toLowerCase().includes("abort")) return;
+      setError(String(err));
+    }
+  };
+
   const createFolder = async () => {
     const name = window.prompt("New folder name");
     if (!name?.trim()) return;
@@ -157,7 +167,8 @@ function App() {
               <p className="subtitle">Everything in its place. Your files, your way.</p>
             </div>
             <div className="welcome-actions">
-              <button className="secondary-button" onClick={createFolder}><FolderPlus size={16} /> New folder</button>
+              {isBrowserFileMode() && <button className="secondary-button" onClick={chooseFolder}><HardDrive size={16} /> Choose folder</button>}
+              <button className="secondary-button" onClick={createFolder} disabled={!currentPath}><FolderPlus size={16} /> New folder</button>
               <button className="primary-button" onClick={() => currentPath && loadDirectory(currentPath)}><RefreshCw size={16} /> Refresh</button>
             </div>
           </div>

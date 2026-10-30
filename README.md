@@ -32,7 +32,10 @@ A local-first file manager built with React, TypeScript, Tauri 2 and Rust, with 
 - Copy and move files/folders, including recursive folder copy and collision checks.
 - Permanent delete with explicit confirmation.
 - Keyboard shortcuts: Ctrl/Cmd+K search, Ctrl/Cmd+C copy, Ctrl/Cmd+X cut, Ctrl/Cmd+V paste, F2 rename and Delete remove.
-- Search within the currently displayed directory.\n- Sort by name, type, size or modified date; toggle ascending/descending order.\n- Show or hide dot-prefixed hidden files.\n- Inspect file/folder properties including type, size, modified time and path.
+- Search within the currently displayed directory.
+- Sort by name, type, size or modified date; toggle ascending/descending order.
+- Show or hide dot-prefixed hidden files.
+- Inspect file/folder properties including type, size, modified time and path.
 - Dark/light themes and list/grid views.
 - Windows and Linux Tauri build workflow.
 - GitHub Pages web build/deployment workflow.

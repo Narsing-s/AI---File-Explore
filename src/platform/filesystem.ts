@@ -21,7 +21,7 @@ type BrowserDirectoryHandle = {
   name: string;
   values(): AsyncIterable<BrowserFileHandle | BrowserDirectoryHandle>;
   getDirectoryHandle(name: string, options?: { create?: boolean }): Promise<BrowserDirectoryHandle>;
-  getFileHandle(name: string): Promise<BrowserFileHandle>;
+  getFileHandle(name: string, options?: { create?: boolean }): Promise<BrowserFileHandle>;
   removeEntry(name: string, options?: { recursive?: boolean }): Promise<void>;
 };
 
@@ -109,12 +109,14 @@ export async function renameEntry(path: string, newName: string): Promise<string
   }
   const source = await directory.getFileHandle(oldName);
   const file = await source.getFile();
-  const destination = await directory.getFileHandle(trimmed).catch(async () => {
-    const createDirectory = directory as BrowserDirectoryHandle & {
-      getFileHandle(name: string, options: { create: true }): Promise<BrowserFileHandle>
-    };
-    return createDirectory.getFileHandle(trimmed, { create: true });
-  });
+  try {
+    await directory.getFileHandle(trimmed);
+    throw new Error("An item with that name already exists.");
+  } catch (error) {
+    if (error instanceof Error && error.message === "An item with that name already exists.") throw error;
+    if (!(error instanceof DOMException) || error.name !== "NotFoundError") throw error;
+  }
+  const destination = await directory.getFileHandle(trimmed, { create: true });
   const writable = await destination.createWritable();
   try {
     await writable.write(file);
